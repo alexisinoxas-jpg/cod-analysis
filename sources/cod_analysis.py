@@ -118,12 +118,9 @@ EARLY_STUCK_STATUSES = {
 # Dropi pero el call center aún no la llamó para confirmar. Si tu Dropi usa
 # un nombre distinto al de esta lista, decime y lo ajusto.
 PENDING_CONFIRMATION_STATUSES = {
-    "PENDIENTE CONFIRMACION",     # ← el que usa el Dropi del usuario
-    "PENDIENTE", "PENDING",
-    "EN CONFIRMACION",            # _norm() ya quita el acento de "Ó"
-    "POR CONFIRMAR",
-    "SIN CONFIRMAR",
-    "NUEVO", "NEW",
+    # El único estatus pre-confirmación que usa el Dropi del usuario (Noxa).
+    # Si en el futuro Dropi agrega otro, sumarlo acá explícitamente.
+    "PENDIENTE CONFIRMACION",
 }
 _REQUIRED = {"estatus", "order_total", "prov_total", "product_id",
              "product_title", "cantidad"}
@@ -494,7 +491,10 @@ def analyze_excel(
 
     for pid, b in agg.items():
         units = b["units"] or 1
-        confirmed = b["orders"] - b["c"]
+        # Confirmados = total − cancelados − pendientes de confirmación.
+        # Un pedido en "PENDIENTE CONFIRMACION" todavía no pasó por el call
+        # center, así que no cuenta como confirmado.
+        confirmed = b["orders"] - b["c"] - b["pend_conf"]
         tasa_conf = _safe_div(confirmed, b["orders"])
         tasa_entr = _safe_div(b["d"], confirmed)
 
