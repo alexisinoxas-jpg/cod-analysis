@@ -163,6 +163,8 @@
           <th class="l">Producto</th><th class="l">SKU</th>
           <th>Unid.</th><th>Órd.</th><th>Ent</th><th>Canc</th><th>Dev</th>
           <th>Pend</th>
+          <th title="Pendientes esperando llamado del call center (sin confirmar)">
+            Pend. conf.</th>
           <th title="Pendientes con guía generada hace más de 3 días">
             ⚠Pend&gt;3d</th>
           <th title="Compras reportadas por el píxel de Meta (de la columna 'Compras' del CSV)">
@@ -381,6 +383,7 @@ function render(res){
       <td>${r.units_sold}</td><td>${r.orders_count}</td>
       <td>${r.orders_delivered}</td><td>${r.orders_cancelled}</td>
       <td>${r.orders_returned}</td><td>${r.orders_pending}</td>
+      <td>${r.orders_pending_confirmation||0}</td>
       ${stale}
       <td title="Meta: $${money(r.spend_meta)} spend, $${money(r.meta_conv_value)} valor conv.">${r.meta_purchases||'<span class="muted">—</span>'}</td>
       <td title="Shopify rev: $${money(r.shopify_revenue)}">${r.shopify_orders||'<span class="muted">—</span>'}</td>

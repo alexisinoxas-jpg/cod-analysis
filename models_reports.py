@@ -36,7 +36,8 @@ class ProductReportRow:
     orders_cancelled: int = 0
     orders_returned: int = 0
     orders_pending: int = 0
-    orders_pending_stale: int = 0   # pendientes con guía generada hace >3d
+    orders_pending_stale: int = 0           # pendientes con guía generada hace >3d
+    orders_pending_confirmation: int = 0    # esperando llamado del call center
     tasa_confirmacion_real: float = 0.0
     tasa_entrega_real: float = 0.0
 
