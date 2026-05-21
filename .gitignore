@@ -1,0 +1,14 @@
+.env
+.env.local
+*.json
+meta_api.log
+token_info.json
+.venv/
+venv/
+__pycache__/
+*.pyc
+debug/*.png
+debug/*.html
+*.xlsx
+!samples/*.xlsx
+.DS_Store

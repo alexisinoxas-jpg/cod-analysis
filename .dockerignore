@@ -1,0 +1,17 @@
+.env
+.env.local
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.git/
+.gitignore
+secrets/
+debug/
+samples/
+meta_api.log
+*.log
+*.xlsx
+campaign_overrides.json
+README.md

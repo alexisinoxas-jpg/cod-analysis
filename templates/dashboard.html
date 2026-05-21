@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Análisis COD · Dropi</title>
+<style>
+  :root { --bg:#0f1419; --card:#1a212b; --line:#2b3441; --txt:#e6edf3;
+          --mut:#8b97a5; --accent:#3b82f6; --ok:#22c55e; --bad:#ef4444;
+          --warn:#f59e0b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.5 system-ui,Segoe UI,Roboto,sans-serif;
+         background:var(--bg); color:var(--txt); }
+  .wrap { max-width:1280px; margin:0 auto; padding:24px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--mut); margin:0 0 20px; }
+  .section { background:var(--card); border:1px solid var(--line);
+             border-radius:10px; margin-bottom:18px; overflow:hidden; }
+  .section > summary { cursor:pointer; padding:14px 18px; font-weight:600;
+             list-style:none; user-select:none; }
+  .section > summary::-webkit-details-marker { display:none; }
+  .section > summary::before { content:"▸ "; color:var(--accent); }
+  .section[open] > summary::before { content:"▾ "; }
+  .body { padding:0 18px 18px; }
+  .panel { border-radius:8px; padding:16px; margin:14px 0; }
+  .panel.blue { background:#11233f; border:1px solid #1d3b66; }
+  .panel.gray { background:#161d26; border:1px solid var(--line); }
+  .panel h3 { margin:0 0 12px; font-size:15px; }
+  label { display:block; color:var(--mut); font-size:12px; margin:8px 0 3px; }
+  input[type=date],input[type=number],input[type=text],select,textarea {
+    background:#0c1117; border:1px solid var(--line); color:var(--txt);
+    border-radius:6px; padding:7px 9px; font:inherit; width:100%; }
+  textarea { resize:vertical; min-height:60px;
+    font:12px/1.4 ui-monospace,Consolas,monospace; }
+  .row { display:flex; gap:14px; flex-wrap:wrap; }
+  .row > div { flex:1; min-width:150px; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:7px;
+    padding:10px 16px; font:inherit; font-weight:600; cursor:pointer;
+    margin-top:14px; }
+  button.sec { background:#26303d; }
+  button:disabled { opacity:.55; cursor:not-allowed; }
+  .log { background:#06090d; border:1px solid var(--line); border-radius:6px;
+    padding:10px 12px; margin-top:12px; height:190px; overflow:auto;
+    font:12px/1.45 ui-monospace,Consolas,monospace; white-space:pre-wrap;
+    color:#b9c4d0; }
+  .log:empty::before { content:"(vacío — apretá el botón)"; color:#55606e; }
+  .warns { background:#3a2c08; border:1px solid #5c460d; color:#f5d27a;
+    border-radius:6px; padding:10px 12px; margin:12px 0; font-size:13px; }
+  .alerts { background:#3a1414; border:1px solid #5c1d1d; color:#ff8a8a;
+    border-radius:6px; padding:10px 12px; margin:12px 0; font-size:13px;
+    font-weight:600; }
+  table { width:100%; border-collapse:collapse; margin-top:14px;
+    font-size:12.5px; }
+  .tbl-wrap { overflow:auto; max-height:72vh; border:1px solid var(--line);
+    border-radius:8px; }
+  th,td { padding:7px 9px; border-bottom:1px solid var(--line);
+    text-align:right; white-space:nowrap; background:var(--card); }
+  th { color:var(--mut); position:sticky; top:0; z-index:2; font-weight:600; }
+  td.l,th.l { text-align:left; }
+  /* Primera columna (Producto) fija a la izquierda en scroll horizontal */
+  th:first-child, td:first-child { position:sticky; left:0; z-index:1; }
+  th:first-child { z-index:3; }
+  tbody tr:hover td { background:#1e2632; }
+  .warn-cell { color:#f5d27a; font-weight:600; }
+  /* Color de cells por performance vs promedio ponderado del informe.
+     !important para vencer el background de la primera columna sticky. */
+  td.cell-good { background:#0c3320 !important; color:#5ee699 !important;
+                  font-weight:600; }
+  td.cell-mid  { background:#3a2c08 !important; color:#f5d27a !important;
+                  font-weight:600; }
+  td.cell-bad  { background:#3a1414 !important; color:#ff8a8a !important;
+                  font-weight:600; }
+  .btn-inline { background:#26303d; color:#fff; border:0; border-radius:6px;
+    padding:4px 10px; font:inherit; font-size:12px; font-weight:600;
+    cursor:pointer; margin-left:10px; text-decoration:none; display:inline-block; }
+  .btn-inline:hover { background:#3a4756; }
+  .rates { background:#0c1117; border:1px solid var(--line); border-radius:10px;
+    padding:14px 18px; margin:14px 0; display:flex; gap:24px; flex-wrap:wrap; }
+  .rates-global { display:flex; gap:14px; }
+  .rates-global > div { padding:4px 16px; border-left:3px solid var(--accent); }
+  .rates-global .k { color:var(--mut); font-size:10px; text-transform:uppercase;
+    letter-spacing:.5px; margin-bottom:4px; }
+  .rates-global .v { font-size:22px; font-weight:700; color:#5ee699; }
+  .rates-side { display:flex; gap:18px; flex:1; min-width:300px; flex-wrap:wrap; }
+  .rates-col { flex:1; min-width:240px; background:#0a0d12; border-radius:8px;
+    padding:10px 14px; border:1px solid #1a212b; }
+  .rates-col h4 { margin:0 0 6px; font-size:12px; color:#f5d27a;
+    font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+  .rates-col ol { padding-left:18px; margin:0; font-size:12.5px;
+    line-height:1.7; }
+  .rates-col li::marker { color:var(--mut); }
+  .neg { color:var(--bad); } .pos { color:var(--ok); }
+  .kpis { display:flex; gap:12px; flex-wrap:wrap; margin-top:14px; }
+  .kpi { background:#0c1117; border:1px solid var(--line); border-radius:8px;
+    padding:12px 16px; min-width:150px; }
+  .kpi .v { font-size:18px; font-weight:700; }
+  .kpi .k { color:var(--mut); font-size:11px; text-transform:uppercase; }
+  .hc { font-size:12px; color:var(--mut); margin-top:8px; }
+  .pill { display:inline-block; padding:1px 7px; border-radius:10px;
+    font-size:11px; } .pill.ok{background:#0c3320;color:#5ee699;}
+  .pill.bad{background:#3a1414;color:#ff8a8a;}
+  .muted { color:var(--mut); font-size:12px; }
+  .funnel { display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+    margin:14px 0; padding:14px 18px; background:#0c1117;
+    border:1px solid var(--line); border-radius:10px; }
+  .fstep { display:flex; flex-direction:column; align-items:center;
+    padding:4px 10px; min-width:110px; }
+  .fstep .v { font-size:20px; font-weight:700; color:var(--txt); }
+  .fstep .k { color:var(--mut); font-size:10px; text-transform:uppercase;
+    letter-spacing:.5px; margin-bottom:4px; }
+  .fdrop { color:#f5d27a; font-size:11px; margin-top:2px; }
+  .fdrop.bad { color:#ff8a8a; }
+  .farrow { color:#55606e; font-size:20px; padding:0 4px; }
+  .fnote { color:var(--mut); font-size:12px; margin-top:6px; width:100%;
+    text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Análisis COD <span class="muted">(Cash On Delivery · Dropi)</span></h1>
+  <p class="sub">Tienda Noxa Store · instancia app.dropi.cl</p>
+
+  <details class="section" open>
+    <summary>Análisis COD</summary>
+    <div class="body">
+
+      <!-- A) Sub-panel azul: scrape automático -->
+      <div class="panel blue">
+        <h3>📥 Descargar automáticamente desde Dropi</h3>
+        <div class="row">
+          <div><label>Fecha inicio (DD/MM/AAAA)</label>
+               <input type="text" id="s_from" placeholder="DD/MM/AAAA"
+                      maxlength="10" inputmode="numeric"></div>
+          <div><label>Fecha fin (DD/MM/AAAA)</label>
+               <input type="text" id="s_to" placeholder="DD/MM/AAAA"
+                      maxlength="10" inputmode="numeric"></div>
+          <div><label>Gastos operativos ($)</label>
+               <input type="number" id="s_gastos" value="0" step="any"></div>
+        </div>
+        <label>Gasto Meta por campaña (override manual · opcional)</label>
+        <div class="muted" style="margin:-2px 0 6px">
+          Si dejas esto vacío y tienes el reporte programado de Ads Manager
+          configurado, lo leemos solo del correo. Si pegas algo aquí, manda
+          el pegado.
+        </div>
+        <textarea id="s_manual" placeholder="(opcional) Una campaña por línea: 'Nombre de campaña - id - dd/mm/aaaa   <gasto>'  separado por TAB, ; , o 2+ espacios"></textarea>
+        <label>O subí el CSV/XLSX del Ads Manager (anula correo y pegado)</label>
+        <input type="file" id="s_meta_csv" accept=".csv,.xlsx,.xlsm">
+        <button id="btnScrape">📥 Descargar de Dropi y analizar</button>
+        <button class="sec" id="btnHealth" type="button">🩺 Diagnóstico</button>
+        <div class="hc" id="hcOut"></div>
+        <div class="log" id="logBox"></div>
+      </div>
+
+
+      <div id="alerts"></div>
+      <div id="warns"></div>
+      <div id="funnel"></div>
+      <div id="kpis" class="kpis"></div>
+      <div id="rates"></div>
+      <div class="tbl-wrap"><table id="tbl" hidden>
+        <thead><tr>
+          <th class="l">Producto</th><th class="l">SKU</th>
+          <th>Unid.</th><th>Órd.</th><th>Ent</th><th>Canc</th><th>Dev</th>
+          <th>Pend</th>
+          <th title="Pendientes con guía generada hace más de 3 días">
+            ⚠Pend&gt;3d</th>
+          <th title="Compras reportadas por el píxel de Meta (de la columna 'Compras' del CSV)">
+            Meta compras</th>
+          <th title="Órdenes Shopify del rango que contienen este producto (haya o no entrado a Dropi)">
+            Shopify órd.</th>
+          <th>Conf%</th><th>Entr%</th>
+          <th>Rev bruto</th><th>Rev real</th><th>COGS real</th><th>Envío</th>
+          <th>Spend Meta</th><th>Profit neto</th><th>Margen%</th>
+          <th title="BEROAS COD-real: ROAS de break-even con tu delivery rate actual">
+            BEROAS real</th>
+          <th title="BEROAS headline (Meta): asume 100% entrega, sin envío">
+            BEROAS Meta</th>
+          <th title="ROAS para 10% de profit (sobre real)">ROAS 10%</th>
+          <th title="Revenue real entregado / spend">ROAS real</th>
+          <th title="Revenue bruto Dropi / spend (pixel-side)">ROAS Meta</th>
+          <th title="ROAS REPORTADO por Meta: valor de conversión píxel / spend.
+Requiere agregar 'Compras' y 'Valor de conversión' al informe en Ads Manager.">
+            ROAS Meta rep.</th>
+          <th>FB/TT/NA órd.</th>
+        </tr></thead><tbody id="tbody"></tbody>
+      </table></div>
+
+      <!-- Diagnóstico de cruce campaña ↔ producto -->
+      <details class="section" id="xwalk-section" style="margin-top:18px"
+               hidden>
+        <summary>🔍 Cruce campaña Meta ↔ producto Dropi
+          <span class="muted" id="xwalk-stats"></span></summary>
+        <div class="body">
+          <p class="muted" style="margin:6px 0 10px">
+            Para cada campaña del CSV de Meta, te muestro a qué producto
+            Dropi se le atribuyó el gasto y por qué match (id exacto, nombre
+            fuzzy, o sin match). Las "sin match" son las que no aparecen en
+            la tabla → ajustá el nombre de la campaña o del producto Dropi.
+          </p>
+          <div class="tbl-wrap" style="max-height:50vh"><table>
+            <thead><tr>
+              <th class="l">Campaña Meta</th>
+              <th>Spend</th>
+              <th class="l">Match</th>
+              <th class="l">Producto Dropi</th>
+              <th>Score</th>
+            </tr></thead>
+            <tbody id="xwalk-body"></tbody>
+          </table></div>
+        </div>
+      </details>
+
+    </div>
+  </details>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const money = n => (n==null?'-':Number(n).toLocaleString('es-CL',
+  {maximumFractionDigits:0}));
+const pct = n => (n==null?'-':(Number(n)*100).toFixed(0)+'%');
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+  .replace(/</g,'&lt;').replace(/>/g,'&gt;');
+let _lastRows = [];   // último listado de productos para los selects de override
+
+// ── Fechas en DD/MM/AAAA ──
+function fmtDMY(d){
+  return `${String(d.getDate()).padStart(2,'0')}/`+
+         `${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+function parseDMY(s){
+  const m=(s||'').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;  // → YYYY-MM-DD
+}
+function maskDMY(e){
+  let v=e.target.value.replace(/\D/g,'').slice(0,8);
+  if(v.length>4) v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+  else if(v.length>2) v=v.slice(0,2)+'/'+v.slice(2);
+  e.target.value=v;
+}
+['s_from','s_to'].forEach(id=>$(id).addEventListener('input',maskDMY));
+
+// Fechas por defecto: últimos 14 días
+(function(){
+  const today=new Date(), from=new Date();
+  from.setDate(today.getDate()-14);
+  $('s_from').value=fmtDMY(from);
+  $('s_to').value=fmtDMY(today);
+})();
+
+function log(msg){ const b=$('logBox');
+  b.textContent += msg+'\n'; b.scrollTop=b.scrollHeight; }
+
+function render(res){
+  // alertas (pendientes con guía >3d)
+  const a=$('alerts');
+  const ps=(res.totals||{}).pending_stale||0;
+  if(ps>0){
+    const drv = res.drive_link
+      ? `<a class="btn-inline" href="${res.drive_link}" target="_blank">📂 Abrir en Drive</a>`
+      : `<button class="btn-inline" onclick="uploadStaleNow(this)">📂 Subir ahora a Drive</button>`;
+    a.innerHTML=`<div class="alerts">🚨 ${ps} pedidos pendientes con `+
+      `guía generada hace más de 3 días. Revisalos en Dropi para destrabarlos.`+
+      drv +
+      `<a class="btn-inline" href="/reports/cod/stale-pending.xlsx" `+
+      `download>📥 Descargar Excel</a></div>`;
+  } else a.innerHTML='';
+  // warnings
+  const w=$('warns');
+  if(res.warnings && res.warnings.length){
+    w.innerHTML='<div class="warns"><b>⚠ Avisos:</b><br>'+
+      res.warnings.map(x=>'• '+x).join('<br>')+'</div>';
+  } else w.innerHTML='';
+  // kpis
+  const t=res.totals||{};
+  // ── Funnel: Meta píxel → Shopify → Dropi creadas → Dropi entregadas ──
+  const meta=t.meta_purchases||0, sh=t.shopify_orders||0,
+        cr=t.dropi_created||0, dl=t.dropi_delivered||0;
+  const drop=(from,to)=>{
+    if(!from||from<=0) return '';
+    const d=(to-from)/from*100;
+    const cls=d<-30?'fdrop bad':'fdrop';
+    return `<div class="${cls}">${d>=0?'+':''}${d.toFixed(0)}%</div>`;
+  };
+  const step=(k,v,d)=>`<div class="fstep"><div class="k">${k}</div>`+
+    `<div class="v">${v||'<span class="muted">—</span>'}</div>${d}</div>`;
+  let fhtml='';
+  if(meta||sh||cr||dl){
+    fhtml = step('Meta compras', meta, '') +
+      '<div class="farrow">→</div>' + step('Shopify órd.', sh, drop(meta,sh)) +
+      '<div class="farrow">→</div>' + step('Dropi creadas', cr, drop(sh,cr)) +
+      '<div class="farrow">→</div>' + step('Dropi entregadas', dl, drop(cr,dl));
+    const snd=res.shopify_no_dropi||{};
+    if(snd.orders>0){
+      fhtml += `<div class="fnote">⚠ ${snd.orders} órdenes Shopify `+
+        `($${money(snd.revenue)}) NO entraron a Dropi — ahí se cae venta `+
+        `antes del fulfillment.</div>`;
+    }
+    $('funnel').innerHTML = `<div class="funnel">${fhtml}</div>`;
+  } else { $('funnel').innerHTML=''; }
+  $('kpis').innerHTML=[
+    ['Revenue real',money(t.revenue_real)],
+    ['COGS real',money(t.cogs_real)],
+    ['Envío',money(t.shipping)],
+    ['Spend ads',money(t.spend)],
+    ['Profit neto',money(t.profit_neto)],
+    ['Pendientes >3d', ps],
+  ].map(([k,v])=>`<div class="kpi"><div class="k">${k}</div>
+     <div class="v">${typeof v==='number' && k.startsWith('Pend')?v:'$'+v}</div></div>`).join('');
+  // ── Promedios ponderados de la tienda (para colorear Conf%/Entr%) ──
+  let totOrd=0, totConfirmed=0, sumConf=0, sumEntr=0;
+  (res.rows||[]).forEach(r=>{
+    totOrd += r.orders_count||0;
+    sumConf += (r.tasa_confirmacion_real||0) * (r.orders_count||0);
+    const conf = (r.orders_count||0) - (r.orders_cancelled||0);
+    totConfirmed += conf;
+    sumEntr += (r.tasa_entrega_real||0) * conf;
+  });
+  const avgConf = totOrd>0 ? sumConf/totOrd : 0;
+  const avgEntr = totConfirmed>0 ? sumEntr/totConfirmed : 0;
+  function rateClass(rate, avg, sample){
+    if(!avg || rate==null || (sample||0) < 5) return '';
+    const ratio = rate/avg;
+    if(ratio >= 1.10) return 'cell-good';
+    if(ratio >= 0.90) return 'cell-mid';
+    return 'cell-bad';
+  }
+  // Tasas globales tienda + ranking peor confirmación / peor entrega
+  const MIN_ORD = 10;  // umbral para que "mueva la aguja"
+  const validRows = (res.rows||[]).filter(r => (r.orders_count||0) >= MIN_ORD);
+  const lowConf = [...validRows]
+    .sort((a,b) => a.tasa_confirmacion_real - b.tasa_confirmacion_real)
+    .slice(0, 5);
+  const lowEntr = validRows
+    .filter(r => (r.orders_count - r.orders_cancelled) >= 5)
+    .sort((a,b) => a.tasa_entrega_real - b.tasa_entrega_real)
+    .slice(0, 5);
+  const liItem = (r, kind) => {
+    const rate = kind==='conf' ? r.tasa_confirmacion_real : r.tasa_entrega_real;
+    const ctx = kind==='conf' ? `${r.orders_count} órd.`
+                              : `${r.orders_count - r.orders_cancelled} confirmadas`;
+    return `<li><b>${esc(r.product_title||r.product_id)}</b> → `+
+           `${pct(rate)} <span class="muted">(${ctx})</span></li>`;
+  };
+  let ratesHtml = '';
+  if(totOrd > 0){
+    ratesHtml = `<div class="rates">
+      <div class="rates-global">
+        <div><div class="k">Tasa confirmación tienda</div>
+             <div class="v">${(avgConf*100).toFixed(1)}%</div></div>
+        <div><div class="k">Tasa entrega tienda</div>
+             <div class="v">${(avgEntr*100).toFixed(1)}%</div></div>
+      </div>
+      <div class="rates-side">
+        <div class="rates-col">
+          <h4>⚠ Peor confirmación (≥${MIN_ORD} órdenes)</h4>
+          <ol>${lowConf.map(r=>liItem(r,'conf')).join('') ||
+            '<li class="muted">Sin productos con suficiente volumen.</li>'}</ol>
+        </div>
+        <div class="rates-col">
+          <h4>⚠ Peor entrega (≥${MIN_ORD} órdenes, ≥5 confirmadas)</h4>
+          <ol>${lowEntr.map(r=>liItem(r,'entr')).join('') ||
+            '<li class="muted">Sin productos con suficiente volumen.</li>'}</ol>
+        </div>
+      </div>
+    </div>`;
+  }
+  $('rates').innerHTML = ratesHtml;
+  // tabla
+  const tb=$('tbody'); tb.innerHTML='';
+  (res.rows||[]).forEach(r=>{
+    const tr=document.createElement('tr');
+    const pc = r.profit_neto<0?'neg':'pos';
+    const stale = r.orders_pending_stale>0
+      ? `<td class="warn-cell">${r.orders_pending_stale}</td>`
+      : `<td>${r.orders_pending_stale}</td>`;
+    tr.innerHTML=`
+      <td class="l">${r.product_title||r.product_id}</td>
+      <td class="l muted">${(r.sku||'').slice(0,22)}</td>
+      <td>${r.units_sold}</td><td>${r.orders_count}</td>
+      <td>${r.orders_delivered}</td><td>${r.orders_cancelled}</td>
+      <td>${r.orders_returned}</td><td>${r.orders_pending}</td>
+      ${stale}
+      <td title="Meta: $${money(r.spend_meta)} spend, $${money(r.meta_conv_value)} valor conv.">${r.meta_purchases||'<span class="muted">—</span>'}</td>
+      <td title="Shopify rev: $${money(r.shopify_revenue)}">${r.shopify_orders||'<span class="muted">—</span>'}</td>
+      <td class="${rateClass(r.tasa_confirmacion_real, avgConf, r.orders_count)}"
+          title="Promedio del informe: ${(avgConf*100).toFixed(0)}%">${pct(r.tasa_confirmacion_real)}</td>
+      <td class="${rateClass(r.tasa_entrega_real, avgEntr, r.orders_count-r.orders_cancelled)}"
+          title="Promedio del informe: ${(avgEntr*100).toFixed(0)}%">${pct(r.tasa_entrega_real)}</td>
+      <td>$${money(r.revenue_gross)}</td>
+      <td>$${money(r.revenue_real)}</td>
+      <td>$${money(r.cogs_real)}</td>
+      <td>$${money(r.shipping_total)}</td>
+      <td>$${money(r.spend_meta)}</td>
+      <td class="${pc}">$${money(r.profit_neto)}</td>
+      <td class="${pc}">${pct(r.margin_pct)}</td>
+      <td>${r.beroas||'-'}</td>
+      <td class="muted">${r.beroas_meta||'-'}</td>
+      <td>${r.roas_10pct||'-'}</td>
+      <td>${r.roas_real_meta||'-'}</td>
+      <td class="muted">${r.roas_gross_meta||'-'}</td>
+      <td>${r.roas_meta_reported||'<span class="muted">—</span>'}</td>
+      <td class="muted">${r.orders_facebook}/${r.orders_tiktok}/${r.orders_unattrib}</td>`;
+    tb.appendChild(tr);
+  });
+  $('tbl').hidden=(res.rows||[]).length===0;
+  _lastRows = res.rows || [];
+  // ── Cruce campaña ↔ producto (con override manual) ──
+  const xlog=res.attribution_log||[];
+  const xs=$('xwalk-section'), xb=$('xwalk-body');
+  if(xlog.length){
+    const sorted=[...xlog].sort((a,b)=>b.spend-a.spend);
+    const ok=sorted.filter(e=>e.via!=='unmatched').length;
+    const unmatched=sorted.length-ok;
+    const unmatchedSpend=sorted.filter(e=>e.via==='unmatched')
+      .reduce((s,e)=>s+e.spend,0);
+    $('xwalk-stats').textContent=` · ${ok} ok, ${unmatched} sin match `+
+      `($${money(unmatchedSpend)})`;
+    // Opciones del select: todos los productos Dropi
+    const opts = (pid) => {
+      const head = `<option value="">— sin asignar —</option>`;
+      const body = _lastRows.map(p =>
+        `<option value="${esc(p.product_id)}"`+
+        (String(p.product_id)===String(pid)?' selected':'')+`>`+
+        `${esc(p.product_title||p.product_id)}</option>`).join('');
+      return head + body;
+    };
+    xb.innerHTML=sorted.map(e=>{
+      const badge = e.via==='manual'
+        ? '<span class="pill ok">manual</span>'
+        : e.via==='id' ? '<span class="pill ok">id exacto</span>'
+        : e.via==='name'
+          ? `<span class="pill ok">nombre ${(e.score*100).toFixed(0)}%</span>`
+          : '<span class="pill bad">sin match</span>';
+      return `<tr>
+        <td class="l">${esc(e.campaign)}</td>
+        <td>$${money(e.spend)}</td>
+        <td class="l">${badge}</td>
+        <td class="l">
+          <select data-campaign="${esc(e.campaign)}"
+                  onchange="overrideCampaign(this)"
+                  style="min-width:200px">
+            ${opts(e.matched_product_id)}
+          </select>
+        </td>
+        <td>${e.via==='name'?(e.score).toFixed(2):''}</td>
+      </tr>`;
+    }).join('');
+    xs.hidden=false;
+  } else {
+    xs.hidden=true;
+  }
+}
+
+async function uploadStaleNow(btn){
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = 'Subiendo…';
+  try{
+    const r = await fetch('/reports/cod/upload-stale-now',{method:'POST'});
+    const j = await r.json();
+    if(j.ok){
+      btn.outerHTML = `<a class="btn-inline" href="${j.drive_link}" `+
+        `target="_blank">📂 Abrir en Drive</a>`;
+    } else {
+      btn.textContent = original;
+      btn.disabled = false;
+      alert('Falló la subida a Drive: '+(j.error||'error'));
+    }
+  } catch(e){
+    btn.textContent = original; btn.disabled = false;
+    alert('Error: '+e);
+  }
+}
+
+async function overrideCampaign(sel){
+  const c = sel.getAttribute('data-campaign');
+  const pid = sel.value;
+  sel.disabled = true;
+  log('Guardando override: «'+c+'» → '+(pid||'(sin asignar)'));
+  try {
+    await fetch('/reports/cod/override-campaign',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({campaign:c, product_id:pid})});
+    log('Recalculando atribución…');
+    const r = await fetch('/reports/cod/recompute',{method:'POST'});
+    const j = await r.json();
+    if(j.ok){ render(j.result); log('✓ Tabla actualizada.'); }
+    else { log('❌ '+(j.error||'error al recomputar')); }
+  } catch (err) {
+    log('❌ '+err);
+  } finally {
+    sel.disabled = false;
+  }
+}
+
+// ── A) Scrape + SSE ──
+let es=null;
+$('btnScrape').onclick=async()=>{
+  const btn=$('btnScrape'); btn.disabled=true;
+  $('logBox').textContent=''; $('warns').innerHTML='';
+  try{
+    const df=parseDMY($('s_from').value), dt=parseDMY($('s_to').value);
+    if(!df||!dt){
+      log('ERROR: las fechas deben estar en formato DD/MM/AAAA');
+      btn.disabled=false; return;
+    }
+    const fd=new FormData();
+    fd.append('date_from', df);
+    fd.append('date_to', dt);
+    fd.append('gastos_operativos', String(parseFloat($('s_gastos').value)||0));
+    fd.append('manual_spend', $('s_manual').value || '');
+    const csv=$('s_meta_csv').files[0];
+    if(csv) fd.append('meta_csv', csv);
+    const r=await fetch('/reports/cod/scrape-dropi',{method:'POST', body:fd});
+    const j=await r.json();
+    if(!j.ok){ log('ERROR: '+(j.error||'no se pudo iniciar'));
+      btn.disabled=false; return; }
+    log('Job '+j.job_id+' iniciado. Conectando al stream…');
+    if(es) es.close();
+    es=new EventSource('/reports/cod/scrape-dropi/stream');
+    es.addEventListener('progress',e=>log(e.data));
+    es.addEventListener('error',e=>{ if(e.data) log('❌ '+e.data); });
+    es.addEventListener('result',e=>{
+      try{ render(JSON.parse(e.data)); log('✓ Resultado renderizado.'); }
+      catch(err){ log('No pude parsear el resultado: '+err); }
+    });
+    es.addEventListener('done',()=>{ log('— fin —');
+      es.close(); btn.disabled=false; });
+    es.onerror=()=>{ /* keep-alive / reconexión: ignorar ruido */ };
+  }catch(err){ log('ERROR: '+err); btn.disabled=false; }
+};
+
+
+// ── Diagnóstico ──
+$('btnHealth').onclick=async()=>{
+  $('hcOut').textContent='Chequeando…';
+  try{
+    const j=await(await fetch('/reports/cod/healthcheck')).json();
+    const pill=b=>`<span class="pill ${b?'ok':'bad'}">${b?'OK':'FALLA'}</span>`;
+    $('hcOut').innerHTML=
+      `Dropi ${pill(j.dropi_email_set&&j.dropi_password_set)} · `+
+      `Meta ${pill(j.meta.ok)} <span class=muted>${j.meta.msg}</span> · `+
+      `Shopify ${pill(j.shopify.ok)} <span class=muted>${j.shopify.msg}</span> · `+
+      `Gmail ${pill(j.gmail.ok)} <span class=muted>${j.gmail.msg}</span> · `+
+      `Drive ${pill(j.drive.ok)} <span class=muted>${j.drive.msg}`+
+      (j.drive.sa_email?` · SA: ${j.drive.sa_email}`:'')+`</span> · `+
+      `Regex campañas ${pill(j.campaign_regex_set)}`;
+  }catch(e){ $('hcOut').textContent='Error: '+e; }
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+flask>=3.0
+# Pin exacto a la versión de la imagen Docker oficial de Playwright
+# (mcr.microsoft.com/playwright/python:v1.48.0-jammy)
+playwright==1.48.0
+python-dotenv>=1.0
+openpyxl>=3.1
+requests>=2.31
+google-auth>=2.30
