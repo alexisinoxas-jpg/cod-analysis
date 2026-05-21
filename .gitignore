@@ -10,5 +10,5 @@ __pycache__/
 debug/*.png
 debug/*.html
 *.xlsx
-!samples/*.xlsx
+samples/
 .DS_Store

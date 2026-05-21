@@ -45,11 +45,17 @@ app.jinja_env.auto_reload = True
 APP_ACCESS_TOKEN = os.getenv("APP_ACCESS_TOKEN", "").strip()
 
 
+@app.route("/healthz")
+def _healthz():
+    """Endpoint público de salud (Railway healthcheck). Sin auth."""
+    return "ok", 200
+
+
 @app.before_request
 def _check_token():
     if not APP_ACCESS_TOKEN:
         return None  # Modo local sin auth
-    if request.path == "/favicon.ico":
+    if request.path in ("/favicon.ico", "/healthz"):
         return None
     if request.cookies.get("cod_auth") == APP_ACCESS_TOKEN:
         return None
