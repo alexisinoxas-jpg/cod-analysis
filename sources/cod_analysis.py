@@ -113,6 +113,18 @@ EARLY_STUCK_STATUSES = {
     "GUIA GENERADA", "GUIA_GENERADA",     # guía emitida, transportadora aún no la levantó
     "PENDIENTE", "PENDING",
 }
+
+# Estatus que representan "pendiente de confirmación" — la orden está en
+# Dropi pero el call center aún no la llamó para confirmar. Si tu Dropi usa
+# un nombre distinto al de esta lista, decime y lo ajusto.
+PENDING_CONFIRMATION_STATUSES = {
+    "PENDIENTE CONFIRMACION",     # ← el que usa el Dropi del usuario
+    "PENDIENTE", "PENDING",
+    "EN CONFIRMACION",            # _norm() ya quita el acento de "Ó"
+    "POR CONFIRMAR",
+    "SIN CONFIRMAR",
+    "NUEVO", "NEW",
+}
 _REQUIRED = {"estatus", "order_total", "prov_total", "product_id",
              "product_title", "cantidad"}
 
@@ -293,7 +305,7 @@ def analyze_excel(
             agg[pid] = dict(
                 product_id=pid, product_title="", sku="",
                 units=0, revenue_gross=0.0, cogs_gross=0.0, orders=0,
-                d=0, c=0, ret=0, pend=0, pend_stale=0,
+                d=0, c=0, ret=0, pend=0, pend_stale=0, pend_conf=0,
                 rev_real=0.0, cogs_real=0.0, ship=0.0,
                 of=0, ot=0, ou=0, rf=0.0, rt=0.0, ru=0.0,
                 uf=0, ut=0, uu=0,
@@ -303,6 +315,9 @@ def analyze_excel(
 
     today = datetime.now().date()
     stale_orders_collected: list[dict] = []
+    # Conteo global de estatus únicos encontrados (para diagnóstico — útil
+    # para que el usuario vea qué nombres usa su Dropi y ajuste los buckets).
+    status_counter: dict[str, int] = {}
 
     for oid, olines in orders.items():
         n_lines = len(olines)
@@ -315,10 +330,14 @@ def analyze_excel(
         shop_id = str(cell(olines[0], "shop_order_id") or "").strip()
         plat = shop.platform_for(shop_id) if do_attribution else "unattributed"
         fecha_guia = _parse_fecha(cell(olines[0], "fecha_guia"))
-        estatus_norm = _norm(cell(olines[0], "estatus"))
+        estatus_raw = str(cell(olines[0], "estatus") or "").strip()
+        estatus_norm = _norm(estatus_raw)
+        if estatus_raw:
+            status_counter[estatus_raw] = status_counter.get(estatus_raw, 0) + 1
         is_stale = (estatus_norm in EARLY_STUCK_STATUSES
                     and fecha_guia is not None
                     and (today - fecha_guia).days > STALE_PENDING_DAYS)
+        is_pending_conf = estatus_norm in PENDING_CONFIRMATION_STATUSES
         if is_stale:
             fl = olines[0]
             stale_orders_collected.append({
@@ -382,6 +401,8 @@ def analyze_excel(
                 b["pend"] += 1
                 if is_stale:
                     b["pend_stale"] += 1
+                if is_pending_conf:
+                    b["pend_conf"] += 1
 
             # Flete: outbound en toda orden confirmada (no cancelada);
             # devolución suma su flete de retorno.
@@ -538,6 +559,7 @@ def analyze_excel(
             orders_returned=b["ret"],
             orders_pending=b["pend"],
             orders_pending_stale=b["pend_stale"],
+            orders_pending_confirmation=b["pend_conf"],
             tasa_confirmacion_real=round(tasa_conf, 4),
             tasa_entrega_real=round(tasa_entr, 4),
             orders_facebook=b["of"], orders_tiktok=b["ot"],
@@ -574,6 +596,13 @@ def analyze_excel(
     result.total_profit_neto = round(sum(r.profit_neto for r in out_rows), 2)
     result.total_pending_stale = sum(r.orders_pending_stale for r in out_rows)
     result.stale_pending_orders = stale_orders_collected
+    # Resumen de estatus únicos encontrados (top 12 más comunes) — útil para
+    # que el usuario verifique cuáles entran en cada bucket.
+    if status_counter:
+        top = sorted(status_counter.items(), key=lambda x: -x[1])[:12]
+        result.warnings.append(
+            "Estatus encontrados (top): " + " · ".join(
+                f"{s}={n}" for s, n in top))
     # Funnel totals: Meta píxel → Shopify → Dropi creadas → Dropi entregadas
     result.total_meta_purchases = sum(r.meta_purchases for r in out_rows)
     result.total_shopify_orders = sum(r.shopify_orders for r in out_rows)
